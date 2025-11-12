@@ -20,14 +20,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        const participantsList = details.participants
+          .map(p => `
+            <li>
+              <span class="participant-email">${p}</span>
+              <button class="unregister-btn" data-email="${p}" aria-label="Unregister ${p}">✖</button>
+            </li>
+          `)
+          .join("");
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <p><strong>Participants (${details.participants.length}):</strong></p>
+          <ul class="participants-list">
+            ${participantsList}
+          </ul>
         `;
 
         activitiesList.appendChild(activityCard);
+
+        // Attach click handler for unregister buttons (delegated on the participants list)
+        const plist = activityCard.querySelector(".participants-list");
+        if (plist) {
+          plist.addEventListener("click", async (e) => {
+            const btn = e.target.closest(".unregister-btn");
+            if (!btn) return;
+
+            const email = btn.dataset.email;
+            const activityName = name;
+
+            if (!email) return;
+
+            if (!confirm(`Unregister ${email} from ${activityName}?`)) return;
+
+            try {
+              const resp = await fetch(
+                `/activities/${encodeURIComponent(activityName)}/participants?email=${encodeURIComponent(email)}`,
+                { method: "DELETE" }
+              );
+
+              const result = await resp.json();
+
+              if (resp.ok) {
+                // Refresh activities to update counts and lists
+                fetchActivities();
+              } else {
+                alert(result.detail || result.message || "Failed to unregister participant");
+              }
+            } catch (err) {
+              console.error("Error unregistering:", err);
+              alert("Failed to unregister. Please try again.");
+            }
+          });
+        }
 
         // Add option to select dropdown
         const option = document.createElement("option");
